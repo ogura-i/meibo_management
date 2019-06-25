@@ -1,3 +1,4 @@
+use std::{io, num, fmt, error};
 use std::fs::File;
 use std::io::{BufWriter, Write, BufReader, BufRead};
 
@@ -8,21 +9,25 @@ struct Date {
 }
 
 impl Date {
-    fn new(str: String) -> Option<Date> {
+    fn new(str: String) -> Result<Date, Errors> {
         let vec: Vec<&str> = str.split('-').collect();
-        
+
         if vec.len() != 3 {
-            None
+            Err(Errors::InvalidFormat)
         } else {
-            if Date::is_valid(vec[0].parse().unwrap(), vec[1].parse().unwrap(), vec[2].parse().unwrap()) {
+            let year = vec.get(0).unwrap().parse()?;
+            let month = vec.get(1).unwrap().parse()?;
+            let day = vec.get(2).unwrap().parse()?;
+
+            if Date::is_valid(year, month, day) {
                 let date = Date {
-                    y: vec[0].parse().unwrap(),
-                    m: vec[1].parse().unwrap(),
-                    d: vec[2].parse().unwrap(),
+                    y: year,
+                    m: month,
+                    d: day,
                 };
-                Some(date)
+                Ok(date)
             } else {
-                None
+                Err(Errors::InvalidValue)
             }
         }
     }
@@ -98,6 +103,48 @@ impl Profile {
     }
 }
 
+#[derive(Debug)]
+enum Errors {
+    Io(io::Error),
+    Parse(num::ParseIntError),
+    InvalidValue,
+    InvalidFormat
+}
+
+impl fmt::Display for Errors {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Errors::Io(ref err) => write!(f, "IO error occured: {}", err),
+            Errors::Parse(ref err) => write!(f, "Parse error occured: {}", err),
+            Errors::InvalidValue => write!(f, "Invalid value"),
+            Errors::InvalidFormat => write!(f, "Invalid format"),
+        }
+    }
+}
+
+impl error::Error for Errors {
+    fn description(&self) -> &str {
+        match *self {
+            Errors::Io(ref err) => err.description(),
+            Errors::Parse(ref err) => err.description(),
+            Errors::InvalidValue => "Invalid value",
+            Errors::InvalidFormat => "Invalid format",
+        }
+    }
+}
+
+impl From<io::Error> for Errors {
+    fn from(err: io::Error) -> Errors {
+        Errors::Io(err)
+    }
+}
+
+impl From<num::ParseIntError> for Errors {
+    fn from(err: num::ParseIntError) -> Errors {
+        Errors::Parse(err)
+    }
+}
+
 enum Command {
     Quit,
     Check,
@@ -110,7 +157,7 @@ enum Command {
 }
 
 impl Command {
-    fn call(&self, profiles: &mut Vec<Profile>) {
+    fn call(&self, profiles: &mut Vec<Profile>) -> Result<(), Errors> {
         match self {
             Command::Quit => {
                 std::process::exit(0);
@@ -138,16 +185,16 @@ impl Command {
             },
 
             Command::Write(filename) => {
-                let mut file = BufWriter::new(File::create(filename).unwrap());
+                let mut file = BufWriter::new(File::create(filename)?);
                 for profile in profiles.iter() {
                     let line = profile.form_csv();
-                    writeln!(file, "{}", line);
+                    writeln!(file, "{}", line)?;
                 }
             },
 
             Command::Read(filename) => {
-                for line in BufReader::new(File::open(filename).unwrap()).lines() {
-                    store_data(line.unwrap(), profiles)
+                for line in BufReader::new(File::open(filename)?).lines() {
+                    store_data(line.unwrap(), profiles)?
                 }
             },
 
@@ -161,7 +208,7 @@ impl Command {
 
             Command::Sort(num) => {
                 match num {
-                    1 => profiles.sort_by_cached_key(|x| x.id),
+                    1 => profiles.sort_by_key(|x| x.id),
                     2 => profiles.sort_by(|a, b| a.name.cmp(&b.name)),
                     3 => profiles.sort_by(|a, b| a.birth.form_string().cmp(&b.birth.form_string())),
                     4 => profiles.sort_by(|a, b| a.addr.cmp(&b.addr)),
@@ -172,46 +219,64 @@ impl Command {
 
             Command::Notfound => println!("command not found"),
         };
+        Ok(())
     }
 }
 
-fn discrimination(args: String, profiles: &mut Vec<Profile>) {
+fn discrimination(args: String, profiles: &mut Vec<Profile>) -> Result<(), Errors>{
     let vec: Vec<&str> = args.split(" ").collect();
     let command = match vec.first().unwrap().trim_end() {
         "%Q" => Command::Quit,
         "%C" => Command::Check,
-        "%P" => Command::Print(vec.get(1).unwrap().trim_end().parse().unwrap()),
+        "%P" => {
+            match vec.get(1) {
+                Some(val) => Command::Print(val.trim_end().parse()?),
+                None => return Err(Errors::InvalidFormat),
+            }
+        },
         "%W" => {
-            Command::Write(vec.get(1).unwrap().trim_end().to_string())
+            match vec.get(1) {
+                Some(val) => Command::Write(val.trim_end().to_string()),
+                None => return Err(Errors::InvalidFormat),
+            }
         },
         "%R" => {
-            Command::Read(vec.get(1).unwrap().trim_end().to_string())
+            match vec.get(1) {
+                Some(val) => Command::Read(val.trim_end().to_string()),
+                None => return Err(Errors::InvalidFormat),
+            }
         },
         "%F" => {
-           Command::Find(vec.get(1).unwrap().trim_end().to_string())
+            match vec.get(1) {
+                Some(val) => Command::Find(val.trim_end().to_string()),
+                None => return Err(Errors::InvalidFormat),
+            }
         },
         "%S" => {
-           Command::Sort(vec.get(1).unwrap().trim_end().parse().unwrap())
+            match vec.get(1) {
+                Some(val) => Command::Sort(val.trim_end().parse()?),
+                None => return Err(Errors::InvalidFormat),
+            }
         },
         _ => Command::Notfound,
     };
     command.call(profiles)
 }
 
-// FIXME: add a error handling
-fn store_data(str: String, profiles: &mut Vec<Profile>) {
+fn store_data(str: String, profiles: &mut Vec<Profile>) -> Result<(), Errors> {
     let vec: Vec<&str> = str.trim_end().splitn(5, ',').collect();
     if vec.len() != 5 {
-        println!("error");
+        Err(Errors::InvalidFormat)
     } else {
         let profile = Profile {
-            id: vec[0].parse().unwrap(),
+            id: vec[0].parse()?,
             name: vec[1].to_string(),
-            birth: Date::new(vec[2].to_string()).unwrap(),
+            birth: Date::new(vec[2].to_string())?,
             addr: vec[3].to_string(),
             note: vec[4].to_string(),
         };
         profiles.push(profile);
+        Ok(())
     }
 }
 
@@ -223,9 +288,15 @@ fn main() {
         std::io::stdin().read_line(&mut line).ok();
 
         if line.starts_with("%") {
-            discrimination(line, &mut profiles);
+            match discrimination(line, &mut profiles) {
+                Ok(_) => {},
+                Err(err) => eprintln!("{}", err),
+            };
         } else {
-            store_data(line, &mut profiles);
+            match store_data(line, &mut profiles) {
+                Ok(_) => {},
+                Err(err) => eprintln!("{}", err),
+            };
         }
     }
 }
