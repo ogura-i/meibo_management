@@ -1,10 +1,68 @@
 use std::fs::File;
 use std::io::{BufWriter, Write, BufReader, BufRead};
 
+struct Date {
+    y: u32,
+    m: u8,
+    d: u8,
+}
+
+impl Date {
+    fn new(str: String) -> Option<Date> {
+        let vec: Vec<&str> = str.split('-').collect();
+        
+        if vec.len() != 3 {
+            None
+        } else {
+            if Date::is_valid(vec[0].parse().unwrap(), vec[1].parse().unwrap(), vec[2].parse().unwrap()) {
+                let date = Date {
+                    y: vec[0].parse().unwrap(),
+                    m: vec[1].parse().unwrap(),
+                    d: vec[2].parse().unwrap(),
+                };
+                Some(date)
+            } else {
+                None
+            }
+        }
+    }
+
+    fn is_valid(y: u32, m: u8, d: u8) -> bool {
+        let days = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+        if (y == 0) || (m == 0) || (m > 12) {
+            false
+        } else {
+            let lday = if (m == 2) && Date::is_leapyear(y) {
+                29
+            } else {
+                days[(m as usize) - 1]
+            };
+            if (d == 0) || (d > lday) {
+                false
+            } else {
+                true
+            }
+        }
+    }
+
+    fn is_leapyear(y: u32) -> bool {
+        if ((y % 4 == 0) && (y % 10 != 0)) || (y % 400 == 0) {
+            true
+        } else {
+            false
+        }
+    }
+
+    fn form_string(&self) -> String {
+        format!("{}-{}-{}", self.y, self.m, self.d)
+    }
+}
+
 struct Profile {
     id: u32,
     name: String,
-    birth: String,
+    birth: Date,
     addr: String,
     note: String,
 }
@@ -13,13 +71,13 @@ impl Profile {
     fn print(&self) {
         println!("Id:    {}", self.id);
         println!("Name:  {}", self.name);
-        println!("Birth: {}", self.birth);
+        println!("Birth: {}", self.birth.form_string());
         println!("Addr:  {}", self.addr);
         println!("Note:  {}\n", self.note);
     }
 
     fn form_csv(&self) -> String {
-        let cdata = format!("{},{},{},{},{}", self.id.to_string(), self.name, self.birth, self.addr, self.note);
+        let cdata = format!("{},{},{},{},{}", self.id.to_string(), self.name, self.birth.form_string(), self.addr, self.note);
         cdata
     }
 
@@ -28,7 +86,7 @@ impl Profile {
             true
         } else if &self.name == word {
             true
-        } else if &self.birth == word {
+        } else if &self.birth.form_string() == word {
             true
         } else if &self.addr == word {
             true
@@ -55,11 +113,13 @@ impl Command {
     fn call(&self, profiles: &mut Vec<Profile>) {
         match self {
             Command::Quit => {
-                std::process::exit(1);
+                std::process::exit(0);
             },
+
             Command::Check => {
                 println!("{} profile(s).", profiles.len());
             },
+
             Command::Print(num) => {
                 if *num > 0 {
                     for profile in profiles.iter().take(*num as usize) {
@@ -76,18 +136,21 @@ impl Command {
                     }
                 }
             },
+
             Command::Write(filename) => {
                 let mut file = BufWriter::new(File::create(filename).unwrap());
                 for profile in profiles.iter() {
-                    let cdata = profile.form_csv();
-                    writeln!(file, "{}", cdata);
+                    let line = profile.form_csv();
+                    writeln!(file, "{}", line);
                 }
             },
+
             Command::Read(filename) => {
-                for cdata in BufReader::new(File::open(filename).unwrap()).lines() {
-                    store_data(cdata.unwrap(), profiles)
+                for line in BufReader::new(File::open(filename).unwrap()).lines() {
+                    store_data(line.unwrap(), profiles)
                 }
             },
+
             Command::Find(word) => {
                 for profile in profiles.iter() {
                     if profile.find_profile(word) {
@@ -95,16 +158,18 @@ impl Command {
                     }
                 }
             },
+
             Command::Sort(num) => {
                 match num {
                     1 => profiles.sort_by_cached_key(|x| x.id),
                     2 => profiles.sort_by(|a, b| a.name.cmp(&b.name)),
-                    3 => profiles.sort_by(|a, b| a.birth.cmp(&b.birth)),
+                    3 => profiles.sort_by(|a, b| a.birth.form_string().cmp(&b.birth.form_string())),
                     4 => profiles.sort_by(|a, b| a.addr.cmp(&b.addr)),
                     5 => profiles.sort_by(|a, b| a.note.cmp(&b.note)),
                     _ => {},
                 };
             },
+
             Command::Notfound => println!("command not found"),
         };
     }
@@ -116,7 +181,6 @@ fn discrimination(args: String, profiles: &mut Vec<Profile>) {
         "%Q" => Command::Quit,
         "%C" => Command::Check,
         "%P" => Command::Print(vec.get(1).unwrap().trim_end().parse().unwrap()),
-
         "%W" => {
             Command::Write(vec.get(1).unwrap().trim_end().to_string())
         },
@@ -136,18 +200,18 @@ fn discrimination(args: String, profiles: &mut Vec<Profile>) {
 
 // FIXME: add a error handling
 fn store_data(str: String, profiles: &mut Vec<Profile>) {
-    let vec: Vec<&str> = str.trim_end().split(',').collect();
+    let vec: Vec<&str> = str.trim_end().splitn(5, ',').collect();
     if vec.len() != 5 {
         println!("error");
     } else {
-        let cdata = Profile {
+        let profile = Profile {
             id: vec[0].parse().unwrap(),
             name: vec[1].to_string(),
-            birth: vec[2].to_string(),
+            birth: Date::new(vec[2].to_string()).unwrap(),
             addr: vec[3].to_string(),
             note: vec[4].to_string(),
         };
-        profiles.push(cdata);
+        profiles.push(profile);
     }
 }
 
@@ -155,13 +219,13 @@ fn main() {
     let mut profiles: Vec<Profile> = Vec::new();
     
     loop {
-        let mut str = String::new();
-        std::io::stdin().read_line(&mut str).ok();
+        let mut line = String::new();
+        std::io::stdin().read_line(&mut line).ok();
 
-        if str.starts_with("%") {
-            discrimination(str, &mut profiles);
+        if line.starts_with("%") {
+            discrimination(line, &mut profiles);
         } else {
-            store_data(str, &mut profiles);
+            store_data(line, &mut profiles);
         }
     }
 }
