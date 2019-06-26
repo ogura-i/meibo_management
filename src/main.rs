@@ -145,7 +145,8 @@ enum Errors {
     Io(io::Error),
     Parse(num::ParseIntError),
     InvalidValue,
-    InvalidFormat
+    InvalidFormat,
+    NotFound,
 }
 
 impl fmt::Display for Errors {
@@ -155,6 +156,7 @@ impl fmt::Display for Errors {
             Errors::Parse(ref err) => write!(f, "Parse error occured: {}", err),
             Errors::InvalidValue => write!(f, "Invalid value"),
             Errors::InvalidFormat => write!(f, "Invalid format"),
+            Errors::NotFound => write!(f, "Command not found"),
         }
     }
 }
@@ -166,6 +168,7 @@ impl error::Error for Errors {
             Errors::Parse(ref err) => err.description(),
             Errors::InvalidValue => "Invalid value",
             Errors::InvalidFormat => "Invalid format",
+            Errors::NotFound => "Command not found",
         }
     }
 }
@@ -193,7 +196,6 @@ enum Command {
     Read(String),
     Find(String),
     Sort(u32),
-    Notfound,
 }
 
 /*
@@ -262,8 +264,6 @@ impl Command {
                     _ => {},
                 };
             },
-
-            Command::Notfound => println!("command not found"),
         };
         Ok(())
     }
@@ -307,7 +307,7 @@ fn discrimination(args: String, profiles: &mut Vec<Profile>) -> Result<(), Error
                 None => return Err(Errors::InvalidFormat),
             }
         },
-        _ => Command::Notfound,
+        _ => return Err(Errors::NotFound),
     };
     command.call(profiles)
 }
