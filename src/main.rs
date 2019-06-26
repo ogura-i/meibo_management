@@ -290,33 +290,33 @@ impl Command {
 fn discrimination(args: String, profiles: &mut Vec<Profile>) -> Result<(), Errors>{
     let vec: Vec<&str> = args.splitn(2, " ").collect();
     let command = match vec.first().unwrap().trim_end() {
-        "%Q" => Command::Quit,
-        "%C" => Command::Check,
-        "%P" => {
+        "Q" => Command::Quit,
+        "C" => Command::Check,
+        "P" => {
             match vec.get(1) {
                 Some(val) => Command::Print(val.trim_end().parse()?),
                 None => return Err(Errors::InvalidFormat),
             }
         },
-        "%W" => {
+        "W" => {
             match vec.get(1) {
                 Some(val) => Command::Write(val.trim_end().to_string()),
                 None => return Err(Errors::InvalidFormat),
             }
         },
-        "%R" => {
+        "R" => {
             match vec.get(1) {
                 Some(val) => Command::Read(val.trim_end().to_string()),
                 None => return Err(Errors::InvalidFormat),
             }
         },
-        "%F" => {
+        "F" => {
             match vec.get(1) {
                 Some(val) => Command::Find(val.trim_end().to_string()),
                 None => return Err(Errors::InvalidFormat),
             }
         },
-        "%S" => {
+        "S" => {
             match vec.get(1) {
                 Some(val) => Command::Sort(val.trim_end().parse()?),
                 None => return Err(Errors::InvalidFormat),
@@ -332,7 +332,7 @@ fn discrimination(args: String, profiles: &mut Vec<Profile>) -> Result<(), Error
  */
 fn parse_line(line: String, profiles: &mut Vec<Profile>) -> Result<(), Errors>{
     if line.starts_with("%") {
-        discrimination(line, profiles)?;
+        discrimination(line[1..].to_string(), profiles)?;
     } else {
         profiles.push(Profile::new(line)?);
     }
