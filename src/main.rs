@@ -19,26 +19,26 @@ impl Date {
     /*
      * new(): initialize Date struct
      */
-    fn new(str: String) -> Result<Date, Errors> {
+    fn new(year: u32, month: u8, day: u8) -> Result<Date, Errors> {
+        if Date::is_valid(year, month, day) {
+            let date = Date {
+                y: year,
+                m: month,
+                d: day,
+            };
+            Ok(date)
+        } else {
+            Err(Errors::InvalidValue)
+        }
+    }
+
+    fn parse_date(str: String) -> Result<Date, Errors> {
         let vec: Vec<&str> = str.split('-').collect();
 
         if vec.len() != 3 {
             Err(Errors::InvalidFormat)
         } else {
-            let year = vec.get(0).unwrap().parse()?;
-            let month = vec.get(1).unwrap().parse()?;
-            let day = vec.get(2).unwrap().parse()?;
-
-            if Date::is_valid(year, month, day) {
-                let date = Date {
-                    y: year,
-                    m: month,
-                    d: day,
-                };
-                Ok(date)
-            } else {
-                Err(Errors::InvalidValue)
-            }
+            Date::new(vec.get(0).unwrap().parse()?, vec.get(1).unwrap().parse()?, vec.get(2).unwrap().parse()?)
         }
     }
 
@@ -101,22 +101,30 @@ impl Profile {
     /*
      * new: initialize Profile struct
      */
-     fn new(str: String) -> Result<Profile, Errors> {
+     fn new(i: u32, na: String, b: String, a: String, no: String) -> Result<Profile, Errors> {
+        let profile = Profile {
+            id: i,
+            name: na,
+            birth: Date::parse_date(b)?,
+            addr: a,
+            note: no,
+        };
+        Ok(profile)
+    }
+
+    fn parse_item(str: &String) -> Result<Profile, Errors> {
         let vec: Vec<&str> = str.trim_end().splitn(5, ',').collect();
         if vec.len() != 5 {
             Err(Errors::InvalidFormat)
         } else {
-            let profile = Profile {
-                id: vec.get(0).unwrap().parse()?,
-                name: vec.get(1).unwrap().to_string(),
-                birth: Date::new(vec.get(2).unwrap().to_string())?,
-                addr: vec.get(3).unwrap().to_string(),
-                note: vec.get(4).unwrap().to_string(),
-            };
-            Ok(profile)
+            let id = vec.get(0).unwrap().parse()?;
+            let name = vec.get(1).unwrap().to_string();
+            let birth = vec.get(2).unwrap().to_string();
+            let addr = vec.get(3).unwrap().to_string();
+            let note = vec.get(4).unwrap().to_string();
+            Profile::new(id, name, birth, addr, note)
         }
     }
-
     /*
      * print: print Profile struct
      */
@@ -257,7 +265,7 @@ impl Command {
 
             Command::Read(filename) => {
                 for line in BufReader::new(File::open(filename)?).lines() {
-                    profiles.push(Profile::new(line?)?);
+                    profiles.push(Profile::parse_item(&line?)?);
                 }
             },
 
@@ -330,11 +338,11 @@ fn discrimination(args: String, profiles: &mut Vec<Profile>) -> Result<(), Error
 /*
  *
  */
-fn parse_line(line: String, profiles: &mut Vec<Profile>) -> Result<(), Errors>{
+fn parse_line(line: &String, profiles: &mut Vec<Profile>) -> Result<(), Errors>{
     if line.starts_with("%") {
         discrimination(line[1..].to_string(), profiles)?;
     } else {
-        profiles.push(Profile::new(line)?);
+        profiles.push(Profile::parse_item(line)?);
     }
     Ok(())
 }
@@ -349,7 +357,7 @@ fn main() {
         let mut line = String::new();
         std::io::stdin().read_line(&mut line).ok();
 
-        match parse_line(line, &mut profiles) {
+        match parse_line(&line, &mut profiles) {
             Ok(_) => {},
             Err(err) => eprintln!("{}", err),
         };
