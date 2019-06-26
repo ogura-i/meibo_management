@@ -328,6 +328,18 @@ fn discrimination(args: String, profiles: &mut Vec<Profile>) -> Result<(), Error
 }
 
 /*
+ *
+ */
+fn parse_line(line: String, profiles: &mut Vec<Profile>) -> Result<(), Errors>{
+    if line.starts_with("%") {
+        discrimination(line, profiles)?;
+    } else {
+        profiles.push(Profile::new(line)?);
+    }
+    Ok(())
+}
+
+/*
  * main
  */
 fn main() {
@@ -337,16 +349,9 @@ fn main() {
         let mut line = String::new();
         std::io::stdin().read_line(&mut line).ok();
 
-        if line.starts_with("%") {
-            match discrimination(line, &mut profiles) {
-                Ok(_) => {},
-                Err(err) => eprintln!("{}", err),
-            };
-        } else {
-            match Profile::new(line) {
-                Ok(profile) => profiles.push(profile),
-                Err(err) => eprintln!("{}", err),
-            };
-        }
+        match parse_line(line, &mut profiles) {
+            Ok(_) => {},
+            Err(err) => eprintln!("{}", err),
+        };
     }
 }
