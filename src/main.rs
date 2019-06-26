@@ -2,13 +2,23 @@ use std::{io, num, fmt, error};
 use std::fs::File;
 use std::io::{BufWriter, Write, BufReader, BufRead};
 
+/*
+ * define Date struct
+ */
+
 struct Date {
     y: u32,
     m: u8,
     d: u8,
 }
 
+/*
+ * define method of Date struct
+ */
 impl Date {
+    /*
+     * new(): initialize Date struct
+     */
     fn new(str: String) -> Result<Date, Errors> {
         let vec: Vec<&str> = str.split('-').collect();
 
@@ -32,6 +42,9 @@ impl Date {
         }
     }
 
+    /*
+     * is_valid: check the date is valid?
+     */
     fn is_valid(y: u32, m: u8, d: u8) -> bool {
         let days = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
@@ -51,6 +64,9 @@ impl Date {
         }
     }
 
+    /*
+     * is_leapyear: check the date is leap year
+     */
     fn is_leapyear(y: u32) -> bool {
         if ((y % 4 == 0) && (y % 10 != 0)) || (y % 400 == 0) {
             true
@@ -59,11 +75,17 @@ impl Date {
         }
     }
 
+    /*
+     * form_string: Date struct to string
+     */
     fn form_string(&self) -> String {
         format!("{}-{}-{}", self.y, self.m, self.d)
     }
 }
 
+/*
+ * define Profile struct
+ */
 struct Profile {
     id: u32,
     name: String,
@@ -72,7 +94,13 @@ struct Profile {
     note: String,
 }
 
+/*
+ * define method of Profile struct
+ */
 impl Profile {
+    /*
+     * print: print Profile struct
+     */
     fn print(&self) {
         println!("Id:    {}", self.id);
         println!("Name:  {}", self.name);
@@ -81,11 +109,17 @@ impl Profile {
         println!("Note:  {}\n", self.note);
     }
 
+    /*
+     * form_csv: Profile struct to csv date
+     */
     fn form_csv(&self) -> String {
         let cdata = format!("{},{},{},{},{}", self.id.to_string(), self.name, self.birth.form_string(), self.addr, self.note);
         cdata
     }
 
+    /*
+     * find_profile: check profile match word
+     */
     fn find_profile(&self, word: & String) -> bool {
         if &self.id.to_string() == word {
             true
@@ -103,6 +137,9 @@ impl Profile {
     }
 }
 
+/*
+ * define Errors
+ */
 #[derive(Debug)]
 enum Errors {
     Io(io::Error),
@@ -145,6 +182,9 @@ impl From<num::ParseIntError> for Errors {
     }
 }
 
+/*
+ * define Command
+ */
 enum Command {
     Quit,
     Check,
@@ -156,7 +196,13 @@ enum Command {
     Notfound,
 }
 
+/*
+ * define method of Command
+ */
 impl Command {
+    /*
+     * call: each command processing
+     */
     fn call(&self, profiles: &mut Vec<Profile>) -> Result<(), Errors> {
         match self {
             Command::Quit => {
@@ -223,6 +269,9 @@ impl Command {
     }
 }
 
+/*
+ * discrimination: discriminate command 
+ */
 fn discrimination(args: String, profiles: &mut Vec<Profile>) -> Result<(), Errors>{
     let vec: Vec<&str> = args.split(" ").collect();
     let command = match vec.first().unwrap().trim_end() {
@@ -263,6 +312,9 @@ fn discrimination(args: String, profiles: &mut Vec<Profile>) -> Result<(), Error
     command.call(profiles)
 }
 
+/*
+ * store_data: store profile data
+ */
 fn store_data(str: String, profiles: &mut Vec<Profile>) -> Result<(), Errors> {
     let vec: Vec<&str> = str.trim_end().splitn(5, ',').collect();
     if vec.len() != 5 {
@@ -280,6 +332,9 @@ fn store_data(str: String, profiles: &mut Vec<Profile>) -> Result<(), Errors> {
     }
 }
 
+/*
+ * main
+ */
 fn main() {
     let mut profiles: Vec<Profile> = Vec::new();
     
