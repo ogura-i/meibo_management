@@ -140,15 +140,11 @@ impl Profile {
      * find_profile: check profile match word
      */
     fn find_profile(&self, word: & String) -> bool {
-        if &self.id.to_string() == word {
-            true
-        } else if &self.name == word {
-            true
-        } else if &self.birth.form_string() == word {
-            true
-        } else if &self.addr == word {
-            true
-        } else if &self.note == word {
+        if &self.id.to_string() == word
+            || &self.name == word
+            || &self.birth.form_string() == word
+            || &self.addr == word
+            || &self.note == word {
             true
         } else {
             false
@@ -280,7 +276,7 @@ impl Command {
                     3 => profiles.sort_by(|a, b| a.birth.form_string().cmp(&b.birth.form_string())),
                     4 => profiles.sort_by(|a, b| a.addr.cmp(&b.addr)),
                     5 => profiles.sort_by(|a, b| a.note.cmp(&b.note)),
-                    _ => {},
+                    _ => return Err(Errors::InvalidValue),
                 };
             },
         };
@@ -292,7 +288,7 @@ impl Command {
  * discrimination: discriminate command 
  */
 fn discrimination(args: String, profiles: &mut Vec<Profile>) -> Result<(), Errors>{
-    let vec: Vec<&str> = args.split(" ").collect();
+    let vec: Vec<&str> = args.splitn(2, " ").collect();
     let command = match vec.first().unwrap().trim_end() {
         "%Q" => Command::Quit,
         "%C" => Command::Check,
