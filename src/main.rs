@@ -99,6 +99,25 @@ struct Profile {
  */
 impl Profile {
     /*
+     * new: initialize Profile struct
+     */
+     fn new(str: String) -> Result<Profile, Errors> {
+        let vec: Vec<&str> = str.trim_end().splitn(5, ',').collect();
+        if vec.len() != 5 {
+            Err(Errors::InvalidFormat)
+        } else {
+            let profile = Profile {
+                id: vec.get(0).unwrap().parse()?,
+                name: vec.get(1).unwrap().to_string(),
+                birth: Date::new(vec.get(2).unwrap().to_string())?,
+                addr: vec.get(3).unwrap().to_string(),
+                note: vec.get(4).unwrap().to_string(),
+            };
+            Ok(profile)
+        }
+    }
+
+    /*
      * print: print Profile struct
      */
     fn print(&self) {
@@ -242,7 +261,7 @@ impl Command {
 
             Command::Read(filename) => {
                 for line in BufReader::new(File::open(filename)?).lines() {
-                    store_data(line.unwrap(), profiles)?
+                    profiles.push(Profile::new(line?)?);
                 }
             },
 
@@ -313,26 +332,6 @@ fn discrimination(args: String, profiles: &mut Vec<Profile>) -> Result<(), Error
 }
 
 /*
- * store_data: store profile data
- */
-fn store_data(str: String, profiles: &mut Vec<Profile>) -> Result<(), Errors> {
-    let vec: Vec<&str> = str.trim_end().splitn(5, ',').collect();
-    if vec.len() != 5 {
-        Err(Errors::InvalidFormat)
-    } else {
-        let profile = Profile {
-            id: vec[0].parse()?,
-            name: vec[1].to_string(),
-            birth: Date::new(vec[2].to_string())?,
-            addr: vec[3].to_string(),
-            note: vec[4].to_string(),
-        };
-        profiles.push(profile);
-        Ok(())
-    }
-}
-
-/*
  * main
  */
 fn main() {
@@ -348,8 +347,8 @@ fn main() {
                 Err(err) => eprintln!("{}", err),
             };
         } else {
-            match store_data(line, &mut profiles) {
-                Ok(_) => {},
+            match Profile::new(line) {
+                Ok(profile) => profiles.push(profile),
                 Err(err) => eprintln!("{}", err),
             };
         }
